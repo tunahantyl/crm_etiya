@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Box,
   Button,
@@ -6,31 +5,59 @@ import {
   TextField,
   Typography,
   Paper,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as yup from 'yup';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { loginStart, loginSuccess } from '../../features/auth/authSlice';
+
+const validationSchema = yup.object({
+  email: yup
+    .string()
+    .email('Geçerli bir e-posta adresi giriniz')
+    .required('E-posta adresi zorunludur'),
+  password: yup
+    .string()
+    .min(6, 'Şifre en az 6 karakter olmalıdır')
+    .required('Şifre zorunludur'),
+});
 
 const Login = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+  const dispatch = useAppDispatch();
+  const { isLoading, error } = useAppSelector((state) => state.auth);
+
+  const formik = useFormik({
+    initialValues: {
+      email: '',
+      password: '',
+    },
+    validationSchema: validationSchema,
+    onSubmit: async (values) => {
+      dispatch(loginStart());
+      try {
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        dispatch(loginSuccess({
+          user: {
+            id: 1,
+            email: values.email,
+            fullName: 'Test Kullanıcı',
+            role: 'ADMIN',
+          },
+          token: 'dummy-token',
+        }));
+        
+        navigate('/dashboard');
+      } catch (error) {
+        // Error handling is done in the auth slice
+      }
+    },
   });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Implement login logic
-    console.log('Login attempt:', formData);
-    // Temporary navigation
-    navigate('/dashboard');
-  };
 
   return (
     <Container component="main" maxWidth="xs">
@@ -44,47 +71,62 @@ const Login = () => {
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Typography component="h1" variant="h5" align="center" gutterBottom>
-            CRM System Login
+            CRM Sistemi Giriş
           </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <Box component="form" onSubmit={formik.handleSubmit} sx={{ mt: 1 }}>
             <TextField
               margin="normal"
               required
               fullWidth
               id="email"
-              label="Email Address"
+              label="E-posta Adresi"
               name="email"
               autoComplete="email"
               autoFocus
-              value={formData.email}
-              onChange={handleChange}
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.email && Boolean(formik.errors.email)}
+              helperText={formik.touched.email && formik.errors.email}
+              disabled={isLoading}
             />
             <TextField
               margin="normal"
               required
               fullWidth
               name="password"
-              label="Password"
+              label="Şifre"
               type="password"
               id="password"
               autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.password && Boolean(formik.errors.password)}
+              helperText={formik.touched.password && formik.errors.password}
+              disabled={isLoading}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
+              disabled={isLoading}
             >
-              Sign In
+              {isLoading ? <CircularProgress size={24} /> : 'Giriş Yap'}
             </Button>
             <Button
               fullWidth
               variant="text"
               onClick={() => navigate('/register')}
+              disabled={isLoading}
             >
-              Don't have an account? Sign Up
+              Hesabınız yok mu? Kayıt Olun
             </Button>
           </Box>
         </Paper>

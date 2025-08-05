@@ -1,31 +1,49 @@
-import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Box,
+  Avatar,
+} from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import AccountCircle from '@mui/icons-material/AccountCircle';
+import { useAppSelector } from '../../app/hooks';
 
-interface NavbarProps {
-  toggleSidebar: () => void;
-}
+const Navbar = () => {
+  const { user } = useAppSelector((state) => state.auth);
 
-const Navbar = ({ toggleSidebar }: NavbarProps) => {
   return (
-    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <AppBar
+      position="fixed"
+      sx={{
+        width: `calc(100% - 240px)`,
+        ml: '240px',
+        bgcolor: 'white',
+        color: 'text.primary',
+        boxShadow: 1,
+      }}
+    >
       <Toolbar>
         <IconButton
-          color="inherit"
-          aria-label="open drawer"
           edge="start"
-          onClick={toggleSidebar}
-          sx={{ marginRight: 2 }}
+          color="inherit"
+          aria-label="menu"
+          sx={{ mr: 2, display: { sm: 'none' } }}
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+        
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           CRM System
         </Typography>
-        <Box>
-          <IconButton color="inherit">
-            <AccountCircle />
-          </IconButton>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            {user?.name}
+          </Typography>
+          <Avatar sx={{ bgcolor: 'primary.main' }}>
+            {user?.name?.charAt(0) || 'U'}
+          </Avatar>
         </Box>
       </Toolbar>
     </AppBar>
