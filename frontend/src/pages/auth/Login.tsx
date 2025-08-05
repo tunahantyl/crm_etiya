@@ -1,18 +1,18 @@
+import { useEffect } from 'react';
 import {
   Box,
   Button,
-  Container,
   TextField,
   Typography,
   Paper,
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { loginStart, loginSuccess } from '../../features/auth/authSlice';
+import { login, clearError } from '../../features/auth/authSlice';
 
 const validationSchema = yup.object({
   email: yup
@@ -28,7 +28,12 @@ const validationSchema = yup.object({
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { isLoading, error } = useAppSelector((state) => state.auth);
+  const { loading, error } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    // Sayfa yüklendiğinde hata mesajını temizle
+    dispatch(clearError());
+  }, [dispatch]);
 
   const formik = useFormik({
     initialValues: {
@@ -37,101 +42,99 @@ const Login = () => {
     },
     validationSchema: validationSchema,
     onSubmit: async (values) => {
-      dispatch(loginStart());
-      try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        dispatch(loginSuccess({
-          user: {
-            id: 1,
-            email: values.email,
-            fullName: 'Test Kullanıcı',
-            role: 'ADMIN',
-          },
-          token: 'dummy-token',
-        }));
-        
+      const resultAction = await dispatch(login(values));
+      if (login.fulfilled.match(resultAction)) {
         navigate('/dashboard');
-      } catch (error) {
-        // Error handling is done in the auth slice
       }
     },
   });
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: '#f5f5f5',
+        p: 2,
+      }}
+    >
+      <Paper
+        elevation={2}
         sx={{
-          marginTop: 8,
+          p: 4,
+          width: '100%',
+          maxWidth: 400,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+          gap: 3,
         }}
       >
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
-            CRM Sistemi Giriş
-          </Typography>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <Box component="form" onSubmit={formik.handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="E-posta Adresi"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={formik.values.email}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.email && Boolean(formik.errors.email)}
-              helperText={formik.touched.email && formik.errors.email}
-              disabled={isLoading}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Şifre"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={formik.values.password}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.password && Boolean(formik.errors.password)}
-              helperText={formik.touched.password && formik.errors.password}
-              disabled={isLoading}
-            />
+        <Typography variant="h5" component="h1" align="center" gutterBottom>
+          CRM Sistemine Giriş
+        </Typography>
+
+        {error && (
+          <Alert severity="error" onClose={() => dispatch(clearError())}>
+            {error}
+          </Alert>
+        )}
+
+        <Box component="form" onSubmit={formik.handleSubmit}>
+          <TextField
+            fullWidth
+            id="email"
+            name="email"
+            label="E-posta"
+            value={formik.values.email}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.email && Boolean(formik.errors.email)}
+            helperText={formik.touched.email && formik.errors.email}
+            disabled={loading}
+            sx={{ mb: 2 }}
+          />
+
+          <TextField
+            fullWidth
+            id="password"
+            name="password"
+            label="Şifre"
+            type="password"
+            value={formik.values.password}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.password && Boolean(formik.errors.password)}
+            helperText={formik.touched.password && formik.errors.password}
+            disabled={loading}
+            sx={{ mb: 3 }}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            size="large"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Giriş Yap'}
+          </Button>
+        </Box>
+
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Hesabınız yok mu?{' '}
             <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={isLoading}
-            >
-              {isLoading ? <CircularProgress size={24} /> : 'Giriş Yap'}
-            </Button>
-            <Button
-              fullWidth
-              variant="text"
               onClick={() => navigate('/register')}
-              disabled={isLoading}
+              sx={{ textTransform: 'none' }}
             >
-              Hesabınız yok mu? Kayıt Olun
+              Kayıt Ol
             </Button>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+          </Typography>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

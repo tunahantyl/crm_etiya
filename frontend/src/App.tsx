@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/layout/Layout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import Profile from './pages/profile/Profile';
 import Dashboard from './pages/dashboard/Dashboard';
 import CustomerList from './pages/customers/CustomerList';
 import CustomerForm from './pages/customers/CustomerForm';
@@ -28,6 +29,7 @@ function App() {
         }>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="profile" element={<Profile />} />
           
           <Route path="customers" element={
             <ProtectedRoute element={<CustomerList />} allowedRoles={['ADMIN']} />
