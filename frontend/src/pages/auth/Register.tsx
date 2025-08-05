@@ -1,122 +1,179 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import {
   Box,
   Button,
-  Container,
   TextField,
   Typography,
   Paper,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
+import { useFormik } from 'formik';
+import * as yup from 'yup';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { register, clearError } from '../../features/auth/authSlice';
+
+const validationSchema = yup.object({
+  fullName: yup
+    .string()
+    .min(3, 'Ad Soyad en az 3 karakter olmalıdır')
+    .required('Ad Soyad zorunludur'),
+  email: yup
+    .string()
+    .email('Geçerli bir e-posta adresi giriniz')
+    .required('E-posta adresi zorunludur'),
+  password: yup
+    .string()
+    .min(6, 'Şifre en az 6 karakter olmalıdır')
+    .required('Şifre zorunludur'),
+  confirmPassword: yup
+    .string()
+    .oneOf([yup.ref('password')], 'Şifreler eşleşmiyor')
+    .required('Şifre tekrarı zorunludur'),
+});
 
 const Register = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+  const dispatch = useAppDispatch();
+  const { loading, error } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
+  const formik = useFormik({
+    initialValues: {
+      fullName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
+    validationSchema: validationSchema,
+    onSubmit: async (values) => {
+      const { confirmPassword, ...registerData } = values;
+      const resultAction = await dispatch(register(registerData));
+      if (register.fulfilled.match(resultAction)) {
+        navigate('/dashboard');
+      }
+    },
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      return;
-    }
-    // TODO: Implement registration logic
-    console.log('Register attempt:', formData);
-    // Temporary navigation
-    navigate('/login');
-  };
-
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: '#f5f5f5',
+        p: 2,
+      }}
+    >
+      <Paper
+        elevation={2}
         sx={{
-          marginTop: 8,
+          p: 4,
+          width: '100%',
+          maxWidth: 400,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+          gap: 3,
         }}
       >
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
-            Create Account
-          </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="fullName"
-              label="Full Name"
-              name="fullName"
-              autoComplete="name"
-              autoFocus
-              value={formData.fullName}
-              onChange={handleChange}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              value={formData.email}
-              onChange={handleChange}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              value={formData.password}
-              onChange={handleChange}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="confirmPassword"
-              label="Confirm Password"
-              type="password"
-              id="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-            />
+        <Typography variant="h5" component="h1" align="center" gutterBottom>
+          CRM Sistemine Kayıt
+        </Typography>
+
+        {error && (
+          <Alert severity="error" onClose={() => dispatch(clearError())}>
+            {error}
+          </Alert>
+        )}
+
+        <Box component="form" onSubmit={formik.handleSubmit}>
+          <TextField
+            fullWidth
+            id="fullName"
+            name="fullName"
+            label="Ad Soyad"
+            value={formik.values.fullName}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.fullName && Boolean(formik.errors.fullName)}
+            helperText={formik.touched.fullName && formik.errors.fullName}
+            disabled={loading}
+            sx={{ mb: 2 }}
+          />
+
+          <TextField
+            fullWidth
+            id="email"
+            name="email"
+            label="E-posta"
+            value={formik.values.email}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.email && Boolean(formik.errors.email)}
+            helperText={formik.touched.email && formik.errors.email}
+            disabled={loading}
+            sx={{ mb: 2 }}
+          />
+
+          <TextField
+            fullWidth
+            id="password"
+            name="password"
+            label="Şifre"
+            type="password"
+            value={formik.values.password}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.password && Boolean(formik.errors.password)}
+            helperText={formik.touched.password && formik.errors.password}
+            disabled={loading}
+            sx={{ mb: 2 }}
+          />
+
+          <TextField
+            fullWidth
+            id="confirmPassword"
+            name="confirmPassword"
+            label="Şifre Tekrarı"
+            type="password"
+            value={formik.values.confirmPassword}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
+            helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+            disabled={loading}
+            sx={{ mb: 3 }}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            size="large"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Kayıt Ol'}
+          </Button>
+        </Box>
+
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Zaten hesabınız var mı?{' '}
             <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-            >
-              Sign Up
-            </Button>
-            <Button
-              fullWidth
-              variant="text"
               onClick={() => navigate('/login')}
+              sx={{ textTransform: 'none' }}
             >
-              Already have an account? Sign In
+              Giriş Yap
             </Button>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+          </Typography>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

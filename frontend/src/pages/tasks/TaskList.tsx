@@ -1,47 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Button,
   Typography,
   Paper,
   Chip,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
+import { useAppSelector, useAppDispatch } from '../../app/hooks';
+import { fetchTasks, fetchTasksByUser, updateTaskStatus } from '../../features/tasks/taskSlice';
 import { pageContainerStyles, pageHeaderStyles, tableContainerStyles } from '../../styles/commonStyles';
-
-// Mock data
-const mockTasks = [
-  {
-    id: 1,
-    title: 'Müşteri Görüşmesi',
-    description: 'Yeni teklif hakkında görüşme',
-    status: 'PENDING',
-    customerName: 'Ahmet Yılmaz',
-    assignedTo: 'Destek Ekibi',
-    dueDate: '2024-02-15',
-  },
-  {
-    id: 2,
-    title: 'Sözleşme Hazırlama',
-    description: 'Yeni dönem sözleşmesi hazırlanacak',
-    status: 'IN_PROGRESS',
-    customerName: 'Ayşe Demir',
-    assignedTo: 'Satış Ekibi',
-    dueDate: '2024-02-20',
-  },
-  {
-    id: 3,
-    title: 'Teknik Destek',
-    description: 'Sistem entegrasyonu desteği',
-    status: 'COMPLETED',
-    customerName: 'Mehmet Kaya',
-    assignedTo: 'Teknik Ekip',
-    dueDate: '2024-02-10',
-  },
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -71,7 +44,19 @@ const getStatusLabel = (status: string) => {
 
 const TaskList = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const { tasks, loading, error } = useAppSelector((state) => state.tasks);
   const [selectedTask, setSelectedTask] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Admin tüm görevleri görür, normal kullanıcı sadece kendi görevlerini
+    if (user?.role === 'ADMIN') {
+      dispatch(fetchTasks());
+    } else if (user?.id) {
+      dispatch(fetchTasksByUser(user.id));
+    }
+  }, [dispatch, user]);
 
   const handleEdit = (id: number) => {
     navigate(`/tasks/${id}`);
@@ -79,6 +64,10 @@ const TaskList = () => {
 
   const handleAddNew = () => {
     navigate('/tasks/new');
+  };
+
+  const handleStatusChange = async (taskId: number, newStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED') => {
+    await dispatch(updateTaskStatus({ id: taskId, status: newStatus }));
   };
 
   const columns: GridColDef[] = [
@@ -104,13 +93,32 @@ const TaskList = () => {
       field: 'status',
       headerName: 'Durum',
       flex: 1,
-      minWidth: 120,
+      minWidth: 150,
       renderCell: (params) => (
-        <Chip
-          label={getStatusLabel(params.value)}
-          color={getStatusColor(params.value)}
-          size="small"
-        />
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Chip
+            label={getStatusLabel(params.value)}
+            color={getStatusColor(params.value)}
+            onClick={() => {
+              const currentStatus = params.value;
+              let newStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+              
+              switch (currentStatus) {
+                case 'PENDING':
+                  newStatus = 'IN_PROGRESS';
+                  break;
+                case 'IN_PROGRESS':
+                  newStatus = 'COMPLETED';
+                  break;
+                default:
+                  newStatus = 'PENDING';
+              }
+              
+              handleStatusChange(params.row.id, newStatus);
+            }}
+            sx={{ cursor: 'pointer' }}
+          />
+        </Box>
       ),
     },
     {
@@ -140,26 +148,42 @@ const TaskList = () => {
     },
   ];
 
+  if (loading && !tasks.length) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Box sx={pageHeaderStyles}>
         <Typography variant="h5" fontWeight="medium">
           Görevler
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddNew}
-          sx={{ px: 3 }}
-        >
-          Yeni Görev
-        </Button>
+        {user?.role === 'ADMIN' && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddNew}
+            sx={{ px: 3 }}
+          >
+            Yeni Görev
+          </Button>
+        )}
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
       <Paper sx={pageContainerStyles}>
         <Box sx={tableContainerStyles}>
           <DataGrid
-            rows={mockTasks}
+            rows={tasks}
             columns={columns}
             initialState={{
               pagination: {

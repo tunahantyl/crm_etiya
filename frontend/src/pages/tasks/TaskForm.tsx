@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   Box,
   Button,
   TextField,
   Typography,
   Paper,
-  Stack,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  CircularProgress,
   Alert,
+  CircularProgress,
+  Stack,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useFormik } from 'formik';
@@ -19,98 +19,113 @@ import * as yup from 'yup';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import trLocale from 'date-fns/locale/tr';
-import { pageContainerStyles, pageHeaderStyles, formStyles } from '../../styles/commonStyles';
-
-// Mock data
-const mockCustomers = [
-  { id: '1', name: 'Ahmet Yılmaz' },
-  { id: '2', name: 'Ayşe Demir' },
-  { id: '3', name: 'Mehmet Kaya' },
-];
-
-const mockUsers = [
-  { id: '1', name: 'Admin Kullanıcı' },
-  { id: '2', name: 'Destek Kullanıcısı' },
-];
+import { useAppSelector, useAppDispatch } from '../../app/hooks';
+import { fetchTaskById, createTask, updateTask, clearSelectedTask } from '../../features/tasks/taskSlice';
+import { pageContainerStyles, pageHeaderStyles } from '../../styles/commonStyles';
 
 const validationSchema = yup.object({
   title: yup
     .string()
     .min(3, 'Başlık en az 3 karakter olmalıdır')
+    .max(100, 'Başlık en fazla 100 karakter olabilir')
     .required('Başlık zorunludur'),
   description: yup
     .string()
     .min(10, 'Açıklama en az 10 karakter olmalıdır')
+    .max(500, 'Açıklama en fazla 500 karakter olabilir')
     .required('Açıklama zorunludur'),
-  status: yup
-    .string()
-    .required('Durum zorunludur'),
   customerId: yup
-    .string()
+    .number()
     .required('Müşteri seçimi zorunludur'),
-  dueDate: yup
-    .date()
-    .nullable()
-    .min(new Date(), 'Bitiş tarihi geçmiş bir tarih olamaz')
-    .required('Bitiş tarihi zorunludur'),
   assignedUserId: yup
     .string()
     .required('Atanacak kişi seçimi zorunludur'),
+  dueDate: yup
+    .date()
+    .min(new Date(), 'Bitiş tarihi geçmiş bir tarih olamaz')
+    .required('Bitiş tarihi zorunludur'),
+  status: yup
+    .string()
+    .oneOf(['PENDING', 'IN_PROGRESS', 'COMPLETED'], 'Geçersiz durum')
+    .required('Durum seçimi zorunludur'),
 });
+
+// Mock data - Backend hazır olduğunda API'den gelecek
+const mockCustomers = [
+  { id: 1, name: 'Ahmet Yılmaz' },
+  { id: 2, name: 'Ayşe Demir' },
+  { id: 3, name: 'Mehmet Kaya' },
+];
+
+const mockUsers = [
+  { id: '1', name: 'Admin Kullanıcı' },
+  { id: '2', name: 'Destek Kullanıcısı' },
+  { id: '3', name: 'Satış Temsilcisi' },
+];
 
 const TaskForm = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { selectedTask, loading, error } = useAppSelector((state) => state.tasks);
+  const { user } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (isEditMode && id) {
+      dispatch(fetchTaskById(Number(id)));
+    }
+    return () => {
+      dispatch(clearSelectedTask());
+    };
+  }, [dispatch, id, isEditMode]);
 
   const formik = useFormik({
     initialValues: {
-      title: '',
-      description: '',
-      status: 'PENDING',
-      customerId: '',
-      dueDate: null,
-      assignedUserId: '',
+      title: selectedTask?.title || '',
+      description: selectedTask?.description || '',
+      customerId: selectedTask?.customerId || '',
+      assignedUserId: selectedTask?.assignedUserId || '',
+      dueDate: selectedTask?.dueDate ? new Date(selectedTask.dueDate) : null,
+      status: selectedTask?.status || 'PENDING',
     },
-    validationSchema: validationSchema,
+    validationSchema,
+    enableReinitialize: true,
     onSubmit: async (values) => {
-      setIsLoading(true);
-      setError(null);
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Görev kaydedildi:', values);
+        if (isEditMode && id) {
+          await dispatch(updateTask({ 
+            id: Number(id), 
+            data: values 
+          })).unwrap();
+        } else {
+          await dispatch(createTask(values)).unwrap();
+        }
         navigate('/tasks');
       } catch (err) {
-        setError('Görev kaydedilemedi. Lütfen tekrar deneyiniz.');
-      } finally {
-        setIsLoading(false);
+        // Error handling redux tarafında yapılıyor
       }
     },
   });
 
-  useEffect(() => {
-    if (isEditMode) {
-      setIsLoading(true);
-      setTimeout(() => {
-        formik.setValues({
-          title: 'Müşteri Araması',
-          description: 'Yeni teklif hakkında müşteriyi ara',
-          status: 'PENDING',
-          customerId: '1',
-          dueDate: new Date('2024-02-15'),
-          assignedUserId: '1',
-        });
-        setIsLoading(false);
-      }, 1000);
-    }
-  }, [isEditMode, formik.setValues]);
+  // Sadece admin ve görev sahibi düzenleyebilir
+  const canEdit = user?.role === 'ADMIN' || selectedTask?.assignedUserId === user?.id;
 
-  if (isLoading && isEditMode) {
+  if (loading && isEditMode) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isEditMode && !canEdit) {
+    return (
+      <Box sx={{ mt: 4 }}>
+        <Alert severity="error">
+          Bu görevi düzenleme yetkiniz bulunmamaktadır.
+        </Alert>
       </Box>
     );
   }
@@ -129,8 +144,8 @@ const TaskForm = () => {
             {error}
           </Alert>
         )}
-        
-        <Box component="form" onSubmit={formik.handleSubmit} sx={formStyles}>
+
+        <Box component="form" onSubmit={formik.handleSubmit}>
           <Stack spacing={3}>
             <TextField
               fullWidth
@@ -141,8 +156,7 @@ const TaskForm = () => {
               onBlur={formik.handleBlur}
               error={formik.touched.title && Boolean(formik.errors.title)}
               helperText={formik.touched.title && formik.errors.title}
-              disabled={isLoading}
-              required
+              disabled={loading}
             />
 
             <TextField
@@ -156,35 +170,13 @@ const TaskForm = () => {
               onBlur={formik.handleBlur}
               error={formik.touched.description && Boolean(formik.errors.description)}
               helperText={formik.touched.description && formik.errors.description}
-              disabled={isLoading}
-              required
+              disabled={loading}
             />
 
             <Box sx={{ display: 'flex', gap: 2 }}>
               <FormControl 
                 fullWidth 
-                error={formik.touched.status && Boolean(formik.errors.status)}
-                required
-              >
-                <InputLabel>Durum</InputLabel>
-                <Select
-                  name="status"
-                  value={formik.values.status}
-                  label="Durum"
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  disabled={isLoading}
-                >
-                  <MenuItem value="PENDING">Beklemede</MenuItem>
-                  <MenuItem value="IN_PROGRESS">Devam Ediyor</MenuItem>
-                  <MenuItem value="COMPLETED">Tamamlandı</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl 
-                fullWidth 
                 error={formik.touched.customerId && Boolean(formik.errors.customerId)}
-                required
               >
                 <InputLabel>Müşteri</InputLabel>
                 <Select
@@ -193,7 +185,7 @@ const TaskForm = () => {
                   label="Müşteri"
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  disabled={isLoading}
+                  disabled={loading}
                 >
                   {mockCustomers.map((customer) => (
                     <MenuItem key={customer.id} value={customer.id}>
@@ -202,30 +194,10 @@ const TaskForm = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={trLocale}>
-                <DatePicker
-                  label="Bitiş Tarihi"
-                  value={formik.values.dueDate}
-                  onChange={(value) => formik.setFieldValue('dueDate', value)}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      required: true,
-                      error: formik.touched.dueDate && Boolean(formik.errors.dueDate),
-                      helperText: formik.touched.dueDate && formik.errors.dueDate as string,
-                    }
-                  }}
-                  disabled={isLoading}
-                />
-              </LocalizationProvider>
 
               <FormControl 
                 fullWidth 
                 error={formik.touched.assignedUserId && Boolean(formik.errors.assignedUserId)}
-                required
               >
                 <InputLabel>Atanacak Kişi</InputLabel>
                 <Select
@@ -234,7 +206,7 @@ const TaskForm = () => {
                   label="Atanacak Kişi"
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  disabled={isLoading}
+                  disabled={loading}
                 >
                   {mockUsers.map((user) => (
                     <MenuItem key={user.id} value={user.id}>
@@ -245,24 +217,59 @@ const TaskForm = () => {
               </FormControl>
             </Box>
 
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControl 
+                fullWidth 
+                error={formik.touched.status && Boolean(formik.errors.status)}
+              >
+                <InputLabel>Durum</InputLabel>
+                <Select
+                  name="status"
+                  value={formik.values.status}
+                  label="Durum"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  disabled={loading}
+                >
+                  <MenuItem value="PENDING">Beklemede</MenuItem>
+                  <MenuItem value="IN_PROGRESS">Devam Ediyor</MenuItem>
+                  <MenuItem value="COMPLETED">Tamamlandı</MenuItem>
+                </Select>
+              </FormControl>
+
+              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={trLocale}>
+                <DatePicker
+                  label="Bitiş Tarihi"
+                  value={formik.values.dueDate}
+                  onChange={(value) => formik.setFieldValue('dueDate', value)}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: formik.touched.dueDate && Boolean(formik.errors.dueDate),
+                      helperText: formik.touched.dueDate && formik.errors.dueDate as string,
+                    }
+                  }}
+                  disabled={loading}
+                />
+              </LocalizationProvider>
+            </Box>
+
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
               <Button
                 variant="outlined"
                 onClick={() => navigate('/tasks')}
-                disabled={isLoading}
+                disabled={loading}
                 size="large"
-                sx={{ minWidth: 120 }}
               >
                 İptal
               </Button>
               <Button
                 type="submit"
                 variant="contained"
-                disabled={isLoading}
+                disabled={loading}
                 size="large"
-                sx={{ minWidth: 120 }}
               >
-                {isLoading ? <CircularProgress size={24} /> : 'Kaydet'}
+                {loading ? <CircularProgress size={24} /> : isEditMode ? 'Güncelle' : 'Oluştur'}
               </Button>
             </Box>
           </Stack>
