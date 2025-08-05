@@ -1,37 +1,39 @@
 import { Box } from '@mui/material';
-import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
-const DRAWER_WIDTH = 240;
-
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-const Layout = ({ children }: LayoutProps) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
+const Layout = () => {
   return (
-    <Box sx={{ display: 'flex' }}>
-      <Navbar toggleSidebar={toggleSidebar} />
-      <Sidebar isOpen={isSidebarOpen} width={DRAWER_WIDTH} />
+    <Box sx={{ 
+      display: 'flex', 
+      minHeight: '100vh',
+      backgroundColor: '#f5f5f5', // Açık gri arka plan
+      width: '100vw',
+      overflow: 'hidden' // Yatay scroll'u engeller
+    }}>
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
+          minHeight: '100vh',
           p: 3,
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          marginLeft: isSidebarOpen ? `${DRAWER_WIDTH}px` : 0,
-          marginTop: '64px',
-          transition: 'margin 0.2s',
+          pt: 10, // Navbar yüksekliği + padding
+          ml: '240px', // Sidebar genişliği
+          width: 'calc(100vw - 240px)', // Tam genişlik - sidebar
+          backgroundColor: '#f5f5f5',
+          overflow: 'auto' // İçerik scroll'u
         }}
       >
-        {children}
+        {/* Navbar */}
+        <Navbar />
+        
+        {/* Page content */}
+        <Outlet />
       </Box>
     </Box>
   );

@@ -1,48 +1,105 @@
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, Toolbar } from '@mui/material';
+import {
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Box,
+  Typography,
+} from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppSelector } from '../../app/hooks';
 
-interface SidebarProps {
-  isOpen: boolean;
-  width: number;
-}
+const drawerWidth = 240;
 
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Customers', icon: <PeopleIcon />, path: '/customers' },
-  { text: 'Tasks', icon: <AssignmentIcon />, path: '/tasks' },
-];
-
-const Sidebar = ({ isOpen, width }: SidebarProps) => {
+const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === 'ADMIN';
+
+  const menuItems = [
+    {
+      text: 'Gösterge Paneli',
+      icon: <DashboardIcon />,
+      path: '/dashboard',
+      showAlways: true,
+    },
+    {
+      text: 'Müşteriler',
+      icon: <PeopleIcon />,
+      path: '/customers',
+      adminOnly: true,
+    },
+    {
+      text: 'Görevler',
+      icon: <AssignmentIcon />,
+      path: '/tasks',
+      showAlways: true,
+    },
+  ];
 
   return (
     <Drawer
-      variant="persistent"
-      open={isOpen}
+      variant="permanent"
       sx={{
-        width: width,
+        width: drawerWidth,
         flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: width,
+          width: drawerWidth,
           boxSizing: 'border-box',
+          bgcolor: '#1a237e', // Koyu mavi
+          color: 'white',
         },
       }}
     >
-      <Toolbar />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem 
-            button 
-            key={item.text}
-            onClick={() => navigate(item.path)}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
-        ))}
+      <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+        <Typography variant="h6" component="div" sx={{ color: 'white' }}>
+          CRM System
+        </Typography>
+      </Box>
+      
+      <List sx={{ mt: 2 }}>
+        {menuItems.map((item) => {
+          if (!item.showAlways && item.adminOnly && !isAdmin) {
+            return null;
+          }
+
+          return (
+            <ListItemButton
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              selected={location.pathname === item.path}
+              sx={{
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.12)',
+                  },
+                },
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.04)',
+                },
+                my: 0.5,
+                mx: 1,
+                borderRadius: 1,
+              }}
+            >
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={item.text}
+                primaryTypographyProps={{
+                  fontSize: '0.9rem',
+                }}
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
     </Drawer>
   );
