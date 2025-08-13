@@ -1,9 +1,10 @@
 import { Navigate } from 'react-router-dom';
 import { useAppSelector } from '../../app/hooks';
+import type { ReactElement } from 'react';
 
 interface ProtectedRouteProps {
-  element: JSX.Element;
-  allowedRoles?: ('ADMIN' | 'USER')[];
+  element: ReactElement;
+  allowedRoles?: ('ADMIN' | 'MANAGER' | 'USER')[];
 }
 
 const ProtectedRoute = ({ element, allowedRoles = [] }: ProtectedRouteProps) => {

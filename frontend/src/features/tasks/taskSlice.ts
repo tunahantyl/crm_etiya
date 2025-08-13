@@ -46,11 +46,14 @@ export const createTask = createAsyncThunk(
     title: string;
     description: string;
     customerId: number;
-    assignedUserId: string;
-    dueDate: string;
+    assignedUserId: number;
+    dueDate: string | Date;
   }, { rejectWithValue }) => {
     try {
-      const task = await taskService.create(data);
+      const task = await taskService.create({
+        ...data,
+        dueDate: typeof data.dueDate === 'string' ? data.dueDate : (data.dueDate as Date).toISOString(),
+      } as any);
       return task;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Görev oluşturulamadı');
@@ -62,11 +65,11 @@ export const updateTask = createAsyncThunk(
   'tasks/update',
   async ({ id, data }: {
     id: number;
-    data: {
+      data: {
       title?: string;
       description?: string;
       customerId?: number;
-      assignedUserId?: string;
+      assignedUserId?: number;
       dueDate?: string;
       status?: TaskStatus;
     };
@@ -88,6 +91,18 @@ export const updateTaskStatus = createAsyncThunk(
       return task;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Görev durumu güncellenemedi');
+    }
+  }
+);
+
+export const deleteTask = createAsyncThunk(
+  'tasks/delete',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      await taskService.delete(id);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Görev silinemedi');
     }
   }
 );
@@ -197,6 +212,11 @@ const taskSlice = createSlice({
       if (state.selectedTask?.id === action.payload.id) {
         state.selectedTask = action.payload;
       }
+    });
+
+    // Delete
+    builder.addCase(deleteTask.fulfilled, (state, action) => {
+      state.tasks = state.tasks.filter(t => t.id !== action.payload);
     });
 
     // Fetch By Customer

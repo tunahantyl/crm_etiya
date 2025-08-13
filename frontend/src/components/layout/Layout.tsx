@@ -8,9 +8,9 @@ const Layout = () => {
     <Box sx={{ 
       display: 'flex', 
       minHeight: '100vh',
-      backgroundColor: '#f5f5f5', // Açık gri arka plan
+      backgroundColor: 'background.default',
       width: '100vw',
-      overflow: 'hidden' // Yatay scroll'u engeller
+      overflow: 'hidden'
     }}>
       {/* Sidebar */}
       <Sidebar />
@@ -25,7 +25,7 @@ const Layout = () => {
           pt: 10, // Navbar yüksekliği + padding
           ml: '240px', // Sidebar genişliği
           width: 'calc(100vw - 240px)', // Tam genişlik - sidebar
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'transparent',
           overflow: 'auto' // İçerik scroll'u
         }}
       >

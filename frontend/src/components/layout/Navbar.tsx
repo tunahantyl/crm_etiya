@@ -49,9 +49,11 @@ const Navbar = () => {
       sx={{
         width: `calc(100% - 240px)`,
         ml: '240px',
-        bgcolor: 'white',
         color: 'text.primary',
-        boxShadow: 1,
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.05)',
       }}
     >
       <Toolbar>
@@ -64,7 +66,18 @@ const Navbar = () => {
           <MenuIcon />
         </IconButton>
         
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        <Typography 
+          variant="h6" 
+          component="div" 
+          sx={{ 
+            flexGrow: 1, 
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
           CRM System
         </Typography>
 
@@ -79,7 +92,19 @@ const Navbar = () => {
             aria-controls="profile-menu"
             aria-haspopup="true"
           >
-            <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
+            <Avatar 
+              sx={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                width: 32, 
+                height: 32,
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'scale(1.1)',
+                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                }
+              }}
+            >
               {user?.name?.charAt(0) || 'U'}
             </Avatar>
           </IconButton>
@@ -95,7 +120,11 @@ const Navbar = () => {
             elevation: 0,
             sx: {
               overflow: 'visible',
-              filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: 3,
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
               mt: 1.5,
               '& .MuiAvatar-root': {
                 width: 32,
@@ -111,7 +140,7 @@ const Navbar = () => {
                 right: 14,
                 width: 10,
                 height: 10,
-                bgcolor: 'background.paper',
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
                 transform: 'translateY(-50%) rotate(45deg)',
                 zIndex: 0,
               },

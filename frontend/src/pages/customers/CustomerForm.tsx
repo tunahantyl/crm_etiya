@@ -15,6 +15,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { pageContainerStyles, pageHeaderStyles, formStyles } from '../../styles/commonStyles';
+import { useAppDispatch } from '../../app/hooks';
+import { createCustomer } from '../../features/customers/customerSlice';
 
 const validationSchema = yup.object({
   name: yup
@@ -33,6 +35,7 @@ const validationSchema = yup.object({
 
 const CustomerForm = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,8 +53,11 @@ const CustomerForm = () => {
       setIsLoading(true);
       setError(null);
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Müşteri kaydedildi:', values);
+        await dispatch(createCustomer({
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+        })).unwrap();
         navigate('/customers');
       } catch (err) {
         setError('Müşteri kaydedilemedi. Lütfen tekrar deneyiniz.');

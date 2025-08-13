@@ -1,43 +1,54 @@
-import { Box, Typography, Grid, Paper } from '@mui/material';
+import { Box, Typography, Grid, Paper, CircularProgress, Alert } from '@mui/material';
 import StatCard from '../../components/dashboard/StatCard';
 import TaskStatusChart from '../../components/dashboard/TaskStatusChart';
 import TaskTrendChart from '../../components/dashboard/TaskTrendChart';
-import { useAppSelector } from '../../app/hooks';
+import { useAppSelector, useAppDispatch } from '../../app/hooks';
+import { fetchStats, fetchUserStats, fetchAdminStats, fetchTaskStatusChart, fetchMonthlyTrends } from '../../features/dashboard/dashboardSlice';
 import PeopleIcon from '@mui/icons-material/People';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { pageContainerStyles, pageHeaderStyles } from '../../styles/commonStyles';
+import { useEffect } from 'react';
 
-// Mock data
-const mockStats = {
-  totalCustomers: 150,
-  totalTasks: 48,
-  completedTasks: 32,
-  pendingTasks: 16,
-  userStats: {
-    assignedTasks: 8,
-    completedTasks: 5,
-    pendingTasks: 3
-  }
-};
 
-// Mock chart data
-const mockTaskStatus = {
-  pending: 16,
-  inProgress: 20,
-  completed: 32
-};
-
-const mockTaskTrend = {
-  labels: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'],
-  completed: [2, 3, 4, 3, 5, 2, 3],
-  created: [3, 4, 3, 5, 4, 3, 4]
-};
 
 const Dashboard = () => {
+  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const { stats, userStats, adminStats, taskStatusChart, monthlyTrends, loading, error } = useAppSelector((state) => state.dashboard);
   const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    if (isAdmin) {
+      dispatch(fetchAdminStats());
+    } else {
+      dispatch(fetchUserStats());
+    }
+    dispatch(fetchTaskStatusChart());
+    dispatch(fetchMonthlyTrends());
+  }, [dispatch, isAdmin]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
+
+  const currentStats = isAdmin ? adminStats : userStats;
+  const displayStats = isAdmin ? adminStats : { ...stats, ...userStats };
 
   return (
     <Box>
@@ -52,64 +63,64 @@ const Dashboard = () => {
           {isAdmin ? (
             // Admin Dashboard
             <>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid xs={12} sm={6} md={3}>
                 <StatCard
                   title="Toplam Müşteri"
-                  value={mockStats.totalCustomers}
+                  value={adminStats?.totalCustomers || 0}
                   icon={<PeopleIcon />}
-                  color="#2196f3"
+                  color="#667eea"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid xs={12} sm={6} md={3}>
                 <StatCard
                   title="Toplam Görev"
-                  value={mockStats.totalTasks}
+                  value={adminStats?.totalTasks || 0}
                   icon={<AssignmentIcon />}
-                  color="#4caf50"
+                  color="#764ba2"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid xs={12} sm={6} md={3}>
                 <StatCard
                   title="Tamamlanan Görevler"
-                  value={mockStats.completedTasks}
+                  value={adminStats?.completedTasks || 0}
                   icon={<CheckCircleIcon />}
-                  color="#ff9800"
+                  color="#f093fb"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid xs={12} sm={6} md={3}>
                 <StatCard
                   title="Bekleyen Görevler"
-                  value={mockStats.pendingTasks}
+                  value={adminStats?.pendingTasks || 0}
                   icon={<AccessTimeIcon />}
-                  color="#f44336"
+                  color="#f5576c"
                 />
               </Grid>
             </>
           ) : (
             // User Dashboard
             <>
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid xs={12} sm={6} md={4}>
                 <StatCard
                   title="Atanan Görevler"
-                  value={mockStats.userStats.assignedTasks}
+                  value={userStats?.assignedTasks || 0}
                   icon={<AssignmentIcon />}
-                  color="#2196f3"
+                  color="#667eea"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid xs={12} sm={6} md={4}>
                 <StatCard
                   title="Tamamladığım Görevler"
-                  value={mockStats.userStats.completedTasks}
+                  value={userStats?.completedTasks || 0}
                   icon={<CheckCircleIcon />}
-                  color="#4caf50"
+                  color="#f093fb"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid xs={12} sm={6} md={4}>
                 <StatCard
                   title="Bekleyen Görevlerim"
-                  value={mockStats.userStats.pendingTasks}
+                  value={userStats?.pendingTasks || 0}
                   icon={<AccessTimeIcon />}
-                  color="#f44336"
+                  color="#f5576c"
                 />
               </Grid>
             </>
@@ -117,10 +128,10 @@ const Dashboard = () => {
 
           {/* Grafikler */}
           <Grid item xs={12} md={6}>
-            <TaskStatusChart data={mockTaskStatus} />
+            <TaskStatusChart data={taskStatusChart || { pending: 0, inProgress: 0, completed: 0 }} />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TaskTrendChart data={mockTaskTrend} />
+            <TaskTrendChart data={monthlyTrends || { labels: [], completed: [], created: [] }} />
           </Grid>
 
           {/* Yakında eklenecek: Son aktiviteler, yaklaşan görevler tablosu */}

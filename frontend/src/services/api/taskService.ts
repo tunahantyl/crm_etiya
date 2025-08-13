@@ -8,24 +8,67 @@ export interface Task {
   description: string;
   status: TaskStatus;
   customerId: number;
-  customerName: string;
-  assignedUserId: string;
-  assignedTo: string;
+  customerName?: string;
+  assignedUserId: number;
+  assignedTo?: string;
   dueDate: string;
   createdAt: string;
   updatedAt: string;
+  priority?: number;
+  estimatedHours?: number;
+  actualHours?: number;
+  completedAt?: string;
 }
 
 interface TaskCreateRequest {
   title: string;
   description: string;
   customerId: number;
-  assignedUserId: string;
+  assignedUserId: number;
   dueDate: string;
+  priority?: number;
+  estimatedHours?: number;
 }
 
 interface TaskUpdateRequest extends Partial<TaskCreateRequest> {
   status?: TaskStatus;
+}
+
+// Backend model
+interface BackendTask {
+  id: number;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  dueDate: string;
+  createdAt: string;
+  updatedAt: string;
+  priority?: number;
+  estimatedHours?: number;
+  actualHours?: number;
+  completedAt?: string;
+  customer: { id: number; name?: string };
+  assignedTo?: { id: number; fullName?: string };
+}
+
+function mapBackendTask(t: BackendTask): Task {
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    status: t.status,
+    customerId: t.customer?.id,
+    customerName: t.customer?.name,
+    assignedUserId: t.assignedTo?.id ?? 0,
+    assignedTo: t.assignedTo?.fullName,
+    dueDate: t.dueDate,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+    priority: t.priority,
+    estimatedHours: t.estimatedHours,
+    actualHours: t.actualHours,
+    completedAt: t.completedAt,
+  } as Task;
 }
 
 // Mock data
@@ -37,7 +80,7 @@ const mockTasks: Task[] = [
     status: 'PENDING',
     customerId: 1,
     customerName: 'Ahmet Yılmaz',
-    assignedUserId: '1',
+    assignedUserId: 1,
     assignedTo: 'Destek Ekibi',
     dueDate: '2024-02-15',
     createdAt: '2024-01-20',
@@ -50,7 +93,7 @@ const mockTasks: Task[] = [
     status: 'IN_PROGRESS',
     customerId: 2,
     customerName: 'Ayşe Demir',
-    assignedUserId: '2',
+    assignedUserId: 2,
     assignedTo: 'Satış Ekibi',
     dueDate: '2024-02-20',
     createdAt: '2024-01-21',
@@ -63,7 +106,7 @@ const mockTasks: Task[] = [
     status: 'COMPLETED',
     customerId: 3,
     customerName: 'Mehmet Kaya',
-    assignedUserId: '3',
+    assignedUserId: 3,
     assignedTo: 'Teknik Ekip',
     dueDate: '2024-02-10',
     createdAt: '2024-01-19',
@@ -73,76 +116,94 @@ const mockTasks: Task[] = [
 
 export const taskService = {
   getAll: async (): Promise<Task[]> => {
-    // Backend hazır olduğunda:
-    // const response = await api.get<Task[]>('/tasks');
-    // return response.data;
-
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return mockTasks;
+    try {
+      // Backend Page response
+      const response = await api.get<{ content: BackendTask[] }>('/tasks', { params: { page: 0, size: 100 } });
+      return response.data.content.map(mapBackendTask);
+    } catch (error) {
+      console.error('Task getAll API error:', error);
+      // Fallback: boş liste döndür (duplikasyon olmasın)
+      return [];
+    }
   },
 
   getById: async (id: number): Promise<Task> => {
-    // Backend hazır olduğunda:
-    // const response = await api.get<Task>(`/tasks/${id}`);
-    // return response.data;
-
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const task = mockTasks.find(t => t.id === id);
-    if (!task) {
-      throw new Error('Task not found');
+    try {
+      const response = await api.get<BackendTask>(`/tasks/${id}`);
+      return mapBackendTask(response.data);
+    } catch (error) {
+      console.error('Task getById API error:', error);
+      // Fallback to mock data on error
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const task = mockTasks.find(t => t.id === id);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+      return task;
     }
-    return task;
   },
 
   create: async (data: TaskCreateRequest): Promise<Task> => {
-    // Backend hazır olduğunda:
-    // const response = await api.post<Task>('/tasks', data);
-    // return response.data;
-
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const newTask: Task = {
-      id: Math.max(...mockTasks.map(t => t.id)) + 1,
-      ...data,
-      status: 'PENDING',
-      customerName: 'Mock Customer', // Gerçek müşteri adı backend'den gelecek
-      assignedTo: 'Mock User', // Gerçek kullanıcı adı backend'den gelecek
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    mockTasks.push(newTask);
-    return newTask;
+    try {
+      // Backend DTO'su: TaskCreateRequest
+      const dto = {
+        title: data.title,
+        description: data.description,
+        customerId: data.customerId,
+        assignedUserId: data.assignedUserId,
+        dueDate: new Date(data.dueDate).toISOString(),
+        priority: data.priority || 0,
+        estimatedHours: data.estimatedHours,
+      };
+      const response = await api.post<BackendTask>('/tasks', dto);
+      return mapBackendTask(response.data);
+    } catch (error) {
+      console.error('Task create API error:', error);
+      // Fallback to mock data on error
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newTask: Task = {
+        id: Math.max(...mockTasks.map(t => t.id)) + 1,
+        ...data,
+        status: 'PENDING',
+        customerName: 'Mock Customer',
+        assignedTo: 'Mock User',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      mockTasks.push(newTask);
+      return newTask;
+    }
   },
 
   update: async (id: number, data: TaskUpdateRequest): Promise<Task> => {
-    // Backend hazır olduğunda:
-    // const response = await api.put<Task>(`/tasks/${id}`, data);
-    // return response.data;
-
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const index = mockTasks.findIndex(t => t.id === id);
-    if (index === -1) {
-      throw new Error('Task not found');
+    try {
+      const formattedData = {
+        ...data,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined
+      };
+      const response = await api.put<Task>(`/tasks/${id}`, formattedData);
+      return response.data;
+    } catch (error) {
+      console.error('Task update API error:', error);
+      // Fallback to mock data on error
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const index = mockTasks.findIndex(t => t.id === id);
+      if (index === -1) {
+        throw new Error('Task not found');
+      }
+      const updatedTask = {
+        ...mockTasks[index],
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+      mockTasks[index] = updatedTask;
+      return updatedTask;
     }
-    const updatedTask = {
-      ...mockTasks[index],
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-    mockTasks[index] = updatedTask;
-    return updatedTask;
   },
 
   updateStatus: async (id: number, status: TaskStatus): Promise<Task> => {
-    // Backend hazır olduğunda:
-    // const response = await api.patch<Task>(`/tasks/${id}/status`, { status });
-    // return response.data;
-
-    // Mock response
-    return taskService.update(id, { status });
+    const response = await api.put<BackendTask>(`/tasks/${id}/status`, null, { params: { status } });
+    return mapBackendTask(response.data);
   },
 
   getByCustomerId: async (customerId: number): Promise<Task[]> => {
@@ -156,12 +217,11 @@ export const taskService = {
   },
 
   getByAssignedUserId: async (userId: string): Promise<Task[]> => {
-    // Backend hazır olduğunda:
-    // const response = await api.get<Task[]>(`/tasks?assignedUserId=${userId}`);
-    // return response.data;
+    const response = await api.get<BackendTask[]>(`/tasks/assigned/${userId}`);
+    return response.data.map(mapBackendTask);
+  },
 
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return mockTasks.filter(t => t.assignedUserId === userId);
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/tasks/${id}`);
   }
 };

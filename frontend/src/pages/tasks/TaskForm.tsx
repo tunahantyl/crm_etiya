@@ -18,9 +18,10 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-import trLocale from 'date-fns/locale/tr';
+import { tr as trLocale } from 'date-fns/locale';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { fetchTaskById, createTask, updateTask, clearSelectedTask } from '../../features/tasks/taskSlice';
+import { fetchCustomers } from '../../features/customers/customerSlice';
 import { pageContainerStyles, pageHeaderStyles } from '../../styles/commonStyles';
 
 const validationSchema = yup.object({
@@ -38,7 +39,7 @@ const validationSchema = yup.object({
     .number()
     .required('Müşteri seçimi zorunludur'),
   assignedUserId: yup
-    .string()
+    .number()
     .required('Atanacak kişi seçimi zorunludur'),
   dueDate: yup
     .date()
@@ -50,17 +51,10 @@ const validationSchema = yup.object({
     .required('Durum seçimi zorunludur'),
 });
 
-// Mock data - Backend hazır olduğunda API'den gelecek
-const mockCustomers = [
-  { id: 1, name: 'Ahmet Yılmaz' },
-  { id: 2, name: 'Ayşe Demir' },
-  { id: 3, name: 'Mehmet Kaya' },
-];
-
 const mockUsers = [
-  { id: '1', name: 'Admin Kullanıcı' },
-  { id: '2', name: 'Destek Kullanıcısı' },
-  { id: '3', name: 'Satış Temsilcisi' },
+  { id: 1, name: 'Admin Kullanıcı' },
+  { id: 2, name: 'Destek Kullanıcısı' },
+  { id: 3, name: 'Satış Temsilcisi' },
 ];
 
 const TaskForm = () => {
@@ -70,12 +64,15 @@ const TaskForm = () => {
   const isEditMode = Boolean(id);
   
   const { selectedTask, loading, error } = useAppSelector((state) => state.tasks);
+  const { customers } = useAppSelector((state) => state.customers);
   const { user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (isEditMode && id) {
       dispatch(fetchTaskById(Number(id)));
     }
+    // Müşterileri listelemek için backend'den çek
+    dispatch(fetchCustomers());
     return () => {
       dispatch(clearSelectedTask());
     };
@@ -94,13 +91,16 @@ const TaskForm = () => {
     enableReinitialize: true,
     onSubmit: async (values) => {
       try {
+        const payload = {
+          ...values,
+          assignedUserId: Number(values.assignedUserId),
+          customerId: Number(values.customerId),
+          dueDate: values.dueDate ? (values.dueDate as Date).toISOString() : new Date().toISOString(),
+        } as any;
         if (isEditMode && id) {
-          await dispatch(updateTask({ 
-            id: Number(id), 
-            data: values 
-          })).unwrap();
+          await dispatch(updateTask({ id: Number(id), data: payload })).unwrap();
         } else {
-          await dispatch(createTask(values)).unwrap();
+          await dispatch(createTask(payload)).unwrap();
         }
         navigate('/tasks');
       } catch (err) {
@@ -110,7 +110,7 @@ const TaskForm = () => {
   });
 
   // Sadece admin ve görev sahibi düzenleyebilir
-  const canEdit = user?.role === 'ADMIN' || selectedTask?.assignedUserId === user?.id;
+  const canEdit = user?.role === 'ADMIN' || selectedTask?.assignedUserId === Number(user?.id);
 
   if (loading && isEditMode) {
     return (
@@ -187,7 +187,7 @@ const TaskForm = () => {
                   onBlur={formik.handleBlur}
                   disabled={loading}
                 >
-                  {mockCustomers.map((customer) => (
+                  {customers.map((customer) => (
                     <MenuItem key={customer.id} value={customer.id}>
                       {customer.name}
                     </MenuItem>

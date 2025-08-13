@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   Box,
   Button,
@@ -11,10 +11,25 @@ import {
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
-import { fetchTasks, fetchTasksByUser, updateTaskStatus } from '../../features/tasks/taskSlice';
+import { fetchTasks, fetchTasksByUser, updateTaskStatus, deleteTask } from '../../features/tasks/taskSlice';
 import { pageContainerStyles, pageHeaderStyles, tableContainerStyles } from '../../styles/commonStyles';
+
+const formatDate = (value: unknown) => {
+  if (!value) return '-';
+  const raw = typeof value === 'string' ? value : String(value);
+  // Normalize common backend formats
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    // Fallback: show YYYY-MM-DD part if parse fails
+    const onlyDate = raw.split('T')[0] || raw;
+    return onlyDate;
+  }
+  return date.toLocaleDateString('tr-TR');
+};
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -47,7 +62,6 @@ const TaskList = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { tasks, loading, error } = useAppSelector((state) => state.tasks);
-  const [selectedTask, setSelectedTask] = useState<number | null>(null);
 
   useEffect(() => {
     // Admin tüm görevleri görür, normal kullanıcı sadece kendi görevlerini
@@ -68,6 +82,10 @@ const TaskList = () => {
 
   const handleStatusChange = async (taskId: number, newStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED') => {
     await dispatch(updateTaskStatus({ id: taskId, status: newStatus }));
+  };
+
+  const handleDelete = async (id: number) => {
+    await dispatch(deleteTask(id));
   };
 
   const columns: GridColDef[] = [
@@ -94,13 +112,13 @@ const TaskList = () => {
       headerName: 'Durum',
       flex: 1,
       minWidth: 150,
-      renderCell: (params) => (
+       renderCell: (params) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Chip
-            label={getStatusLabel(params.value)}
-            color={getStatusColor(params.value)}
+            label={getStatusLabel((params as any).value as string)}
+            color={getStatusColor((params as any).value as string) as any}
             onClick={() => {
-              const currentStatus = params.value;
+              const currentStatus = (params as any).value as string;
               let newStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
               
               switch (currentStatus) {
@@ -126,24 +144,23 @@ const TaskList = () => {
       headerName: 'Bitiş Tarihi',
       flex: 1,
       minWidth: 150,
-      valueFormatter: (params) => {
-        return new Date(params.value).toLocaleDateString('tr-TR');
-      },
+      valueFormatter: (params) => formatDate(params.value),
     },
     {
       field: 'actions',
       headerName: 'İşlemler',
       flex: 1,
-      minWidth: 120,
+      minWidth: 180,
       sortable: false,
       renderCell: (params) => (
-        <Button
-          size="small"
-          startIcon={<EditIcon />}
-          onClick={() => handleEdit(params.row.id)}
-        >
-          Düzenle
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button size="small" startIcon={<EditIcon />} onClick={() => handleEdit(params.row.id)}>
+            Düzenle
+          </Button>
+          <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => handleDelete(params.row.id)}>
+            Sil
+          </Button>
+        </Box>
       ),
     },
   ];
@@ -196,9 +213,7 @@ const TaskList = () => {
             pageSizeOptions={[10, 25, 50]}
             checkboxSelection
             disableRowSelectionOnClick
-            onRowSelectionModelChange={(newSelection) => {
-              setSelectedTask(newSelection[0] as number);
-            }}
+            onRowSelectionModelChange={undefined}
             sx={{
               '& .MuiDataGrid-columnHeaders': {
                 backgroundColor: '#f5f5f5',

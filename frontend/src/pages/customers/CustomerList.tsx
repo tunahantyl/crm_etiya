@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import {
   Box,
   Button,
@@ -12,25 +12,30 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import { pageContainerStyles, pageHeaderStyles, tableContainerStyles } from '../../styles/commonStyles';
-
-// Mock data
-const mockCustomers = [
-  { id: 1, name: 'Ahmet Yılmaz', email: 'ahmet@example.com', phone: '555-0101', createdAt: '2024-01-15', isActive: true },
-  { id: 2, name: 'Ayşe Demir', email: 'ayse@example.com', phone: '555-0102', createdAt: '2024-01-16', isActive: true },
-  { id: 3, name: 'Mehmet Kaya', email: 'mehmet@example.com', phone: '555-0103', createdAt: '2024-01-17', isActive: false },
-];
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchCustomers, deleteCustomer } from '../../features/customers/customerSlice';
 
 const CustomerList = () => {
   const navigate = useNavigate();
-  const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
+  const dispatch = useAppDispatch();
+  const { customers } = useAppSelector((s) => s.customers);
+
+  useEffect(() => {
+    dispatch(fetchCustomers());
+  }, [dispatch]);
 
   const handleEdit = (id: number) => {
     navigate(`/customers/${id}`);
   };
 
-  const handleDelete = (id: number) => {
-    console.log('Delete customer:', id);
-    // API call yapılacak
+  const handleDelete = async (id: number) => {
+    const confirmed = window.confirm('Bu müşteriyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');
+    if (!confirmed) return;
+    try {
+      await dispatch(deleteCustomer(id)).unwrap();
+    } catch (err: any) {
+      window.alert(err || 'Müşteri silinemedi');
+    }
   };
 
   const handleAddNew = () => {
@@ -62,7 +67,10 @@ const CustomerList = () => {
       flex: 1,
       minWidth: 150,
       valueFormatter: (params) => {
-        return new Date(params.value).toLocaleDateString('tr-TR');
+        const value = (params as any).value as string | number | Date | undefined;
+        if (!value) return '-';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('tr-TR');
       },
     },
     {
@@ -127,7 +135,7 @@ const CustomerList = () => {
       <Paper sx={pageContainerStyles}>
         <Box sx={tableContainerStyles}>
           <DataGrid
-            rows={mockCustomers}
+            rows={customers}
             columns={columns}
             initialState={{
               pagination: {
@@ -140,9 +148,6 @@ const CustomerList = () => {
             pageSizeOptions={[10, 25, 50]}
             checkboxSelection
             disableRowSelectionOnClick
-            onRowSelectionModelChange={(newSelection) => {
-              setSelectedCustomer(newSelection[0] as number);
-            }}
             sx={{
               '& .MuiDataGrid-columnHeaders': {
                 backgroundColor: '#f5f5f5',
